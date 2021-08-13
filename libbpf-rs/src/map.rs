@@ -85,6 +85,23 @@ impl OpenMap {
     }
 }
 
+pub trait MapOps {
+    /// File Descriptor
+    fn fd(&self) -> i32;
+
+    /// Map Name
+    fn name(&self) -> &str;
+
+    /// Map Type
+    fn map_type(&self) -> MapType;
+
+    /// Key size in bytes
+    fn key_size(&self) -> u32;
+
+    /// Value size in bytes
+    fn value_size(&self) -> u32;
+}
+
 /// Represents a created map.
 ///
 /// Some methods require working with raw bytes. You may find libraries such as
@@ -115,32 +132,6 @@ impl Map {
             value_size,
             ptr,
         }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Returns a file descriptor to the underlying map.
-    pub fn fd(&self) -> i32 {
-        self.fd
-    }
-
-    pub fn map_type(&self) -> MapType {
-        match MapType::try_from(self.ty) {
-            Ok(t) => t,
-            Err(_) => MapType::Unknown,
-        }
-    }
-
-    /// Key size in bytes
-    pub fn key_size(&self) -> u32 {
-        self.key_size
-    }
-
-    /// Value size in bytes
-    pub fn value_size(&self) -> u32 {
-        self.value_size
     }
 
     /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
@@ -318,6 +309,31 @@ impl Map {
     /// iteration becomes unpredictable.
     pub fn keys(&self) -> MapKeyIter {
         MapKeyIter::new(self, self.key_size())
+    }
+}
+
+impl MapOps for Map {
+    fn fd(&self) -> i32 {
+        self.fd
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn map_type(&self) -> MapType {
+        match MapType::try_from(self.ty) {
+            Ok(t) => t,
+            Err(_) => MapType::Unknown,
+        }
+    }
+
+    fn key_size(&self) -> u32 {
+        self.key_size
+    }
+
+    fn value_size(&self) -> u32 {
+        self.value_size
     }
 }
 
