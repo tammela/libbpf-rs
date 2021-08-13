@@ -63,13 +63,7 @@ impl OpenMap {
 
     /// Reuse an already-pinned map for `self`.
     pub fn reuse_pinned_map<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-        let cstring = util::path_to_cstring(path)?;
-
-        let fd = unsafe { libbpf_sys::bpf_obj_get(cstring.as_ptr()) };
-        if fd < 0 {
-            return Err(Error::System(errno::errno()));
-        }
-
+        let fd = wrappers::bpf_obj_get(path.as_ref())?;
         let ret = unsafe { libbpf_sys::bpf_map__reuse_fd(self.ptr, fd) };
 
         // Always close `fd` regardless of if `bpf_map__reuse_fd` succeeded or failed

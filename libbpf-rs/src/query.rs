@@ -62,20 +62,9 @@ macro_rules! gen_info_impl {
                     None => return None,
                 };
 
-                // We need to use std::mem::zeroed() instead of just using
-                // ::default() because padding bytes need to be zero as well.
-                // Old kernels which know about fewer fields than we do will
-                // check to make sure every byte past what they know is zero
-                // and will return E2BIG otherwise.
-                let mut item: $uapi_info_ty = unsafe { std::mem::zeroed() };
-                let item_ptr: *mut $uapi_info_ty = &mut item;
-                let mut len = size_of::<$uapi_info_ty>() as u32;
-
-                let ret = unsafe { libbpf_sys::bpf_obj_get_info_by_fd(fd, item_ptr as *mut c_void, &mut len) };
-                let parsed_uapi = if ret != 0 {
-                    None
-                } else {
-                    <$info_ty>::from_uapi(fd, item)
+                let parsed_uapi = match wrappers::bpf_obj_get_info_by_fd::<$uapi_info_ty>(fd) {
+                    Ok(item) => <$info_ty>::from_uapi(fd, item),
+                    Err(_) => None,
                 };
 
                 let _ = close(fd);

@@ -79,6 +79,7 @@ mod ringbuf;
 #[doc(hidden)]
 pub mod skeleton;
 mod util;
+mod wrappers;
 
 pub use libbpf_sys;
 
