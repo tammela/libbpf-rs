@@ -331,6 +331,65 @@ impl MapOps for Map {
     }
 }
 
+pub struct PinnedMap {
+    fd: i32,
+    name: String,
+    ty: libbpf_sys::bpf_map_type,
+    key_size: u32,
+    value_size: u32,
+}
+
+impl PinnedMap {
+    pub fn try_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+        if !path.is_file() {
+            return Err(Error::InvalidInput("Expecting a file!".into()));
+        }
+        let map_fd = wrappers::bpf_obj_get(path)?;
+        let map_name = match path.file_name().unwrap().to_str() {
+            Some(str) => str,
+            None => {
+                return Err(Error::InvalidInput(
+                    "Filename cannot be represented as a String!".into(),
+                ))
+            }
+        };
+        let info: libbpf_sys::bpf_map_info = wrappers::bpf_obj_get_info_by_fd(map_fd)?;
+        Ok(PinnedMap {
+            fd: map_fd,
+            name: map_name.into(),
+            ty: info.type_,
+            key_size: info.key_size,
+            value_size: info.value_size,
+        })
+    }
+}
+
+impl MapOps for PinnedMap {
+    fn fd(&self) -> i32 {
+        self.fd
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn map_type(&self) -> MapType {
+        match MapType::try_from(self.ty) {
+            Ok(t) => t,
+            Err(_) => MapType::Unknown,
+        }
+    }
+
+    fn key_size(&self) -> u32 {
+        self.key_size
+    }
+
+    fn value_size(&self) -> u32 {
+        self.value_size
+    }
+}
+
 #[rustfmt::skip]
 bitflags! {
     /// Flags to configure [`Map`] operations.

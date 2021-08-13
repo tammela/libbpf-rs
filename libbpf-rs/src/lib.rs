@@ -86,7 +86,7 @@ pub use libbpf_sys;
 pub use crate::error::{Error, Result};
 pub use crate::iter::Iter;
 pub use crate::link::Link;
-pub use crate::map::{Map, MapFlags, MapOps, MapType, OpenMap};
+pub use crate::map::{Map, MapFlags, MapOps, MapType, OpenMap, PinnedMap};
 pub use crate::object::{Object, ObjectBuilder, OpenObject};
 pub use crate::perf_buffer::{PerfBuffer, PerfBufferBuilder};
 pub use crate::program::{OpenProgram, Program, ProgramAttachType, ProgramType};
