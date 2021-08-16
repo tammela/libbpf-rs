@@ -45,7 +45,7 @@ impl RingBufferBuilder {
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
-    pub fn add<NewF>(&mut self, map: &Map, callback: NewF) -> Result<&mut Self>
+    pub fn add<NewF>(&mut self, map: &dyn MapOps, callback: NewF) -> Result<&mut Self>
     where
         NewF: FnMut(&[u8]) -> i32 + 'static,
     {
