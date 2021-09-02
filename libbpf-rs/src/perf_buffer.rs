@@ -25,14 +25,14 @@ struct CbStruct {
 
 /// Builds [`PerfBuffer`] instances.
 pub struct PerfBufferBuilder<'a> {
-    map: &'a Map,
+    map: &'a dyn MapOps,
     pages: usize,
     sample_cb: Option<Box<dyn SampleCb>>,
     lost_cb: Option<Box<dyn LostCb>>,
 }
 
 impl<'a> PerfBufferBuilder<'a> {
-    pub fn new(map: &'a Map) -> Self {
+    pub fn new(map: &'a dyn MapOps) -> Self {
         Self {
             map,
             pages: 64,
