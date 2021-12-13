@@ -94,6 +94,144 @@ pub trait MapOps {
 
     /// Value size in bytes
     fn value_size(&self) -> u32;
+
+    /// Returns map value as `Vec` of `u8`.
+    ///
+    /// `key` must have exactly [`Map::key_size()`] elements.
+    fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_elem_flags(
+                self.fd() as i32,
+                key.as_ptr() as *const c_void,
+                out.as_mut_ptr() as *mut c_void,
+                flags.bits,
+            )
+        };
+
+        if ret == 0 {
+            unsafe {
+                out.set_len(self.value_size() as usize);
+            }
+            Ok(Some(out))
+        } else {
+            let errno = errno::errno();
+            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
+                Ok(None)
+            } else {
+                Err(Error::System(errno))
+            }
+        }
+    }
+
+    /// Deletes an element from the map.
+    ///
+    /// `key` must have exactly [`Map::key_size()`] elements.
+    fn delete(&self, key: &[u8]) -> Result<()> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_delete_elem(self.fd() as i32, key.as_ptr() as *const c_void)
+        };
+
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(Error::System(errno::errno()))
+        }
+    }
+
+    /// Same as [`Map::lookup()`] except this also deletes the key from the map.
+    ///
+    /// Note that this operation is currently only implemented in the kernel for [`MapType::Queue`]
+    /// and [`MapType::Stack`].
+    ///
+    /// `key` must have exactly [`Map::key_size()`] elements.
+    fn lookup_and_delete(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_lookup_and_delete_elem(
+                self.fd() as i32,
+                key.as_ptr() as *const c_void,
+                out.as_mut_ptr() as *mut c_void,
+            )
+        };
+
+        if ret == 0 {
+            unsafe {
+                out.set_len(self.value_size() as usize);
+            }
+            Ok(Some(out))
+        } else {
+            let errno = errno::errno();
+            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
+                Ok(None)
+            } else {
+                Err(Error::System(errno))
+            }
+        }
+    }
+
+    /// Update an element.
+    ///
+    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
+    /// [`Map::value_size()`] elements.
+    fn update(&self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
+        if key.len() != self.key_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "key_size {} != {}",
+                key.len(),
+                self.key_size()
+            )));
+        };
+
+        if value.len() != self.value_size() as usize {
+            return Err(Error::InvalidInput(format!(
+                "value_size {} != {}",
+                value.len(),
+                self.value_size()
+            )));
+        };
+
+        let ret = unsafe {
+            libbpf_sys::bpf_map_update_elem(
+                self.fd() as i32,
+                key.as_ptr() as *const c_void,
+                value.as_ptr() as *const c_void,
+                flags.bits,
+            )
+        };
+
+        if ret == 0 {
+            Ok(())
+        } else {
+            Err(Error::System(errno::errno()))
+        }
+    }
 }
 
 /// Represents a created map.
@@ -155,144 +293,6 @@ impl Map {
             Err(Error::System(-ret))
         } else {
             Ok(())
-        }
-    }
-
-    /// Returns map value as `Vec` of `u8`.
-    ///
-    /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup(&self, key: &[u8], flags: MapFlags) -> Result<Option<Vec<u8>>> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_lookup_elem_flags(
-                self.fd as i32,
-                key.as_ptr() as *const c_void,
-                out.as_mut_ptr() as *mut c_void,
-                flags.bits,
-            )
-        };
-
-        if ret == 0 {
-            unsafe {
-                out.set_len(self.value_size() as usize);
-            }
-            Ok(Some(out))
-        } else {
-            let errno = errno::errno();
-            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
-                Ok(None)
-            } else {
-                Err(Error::System(errno))
-            }
-        }
-    }
-
-    /// Deletes an element from the map.
-    ///
-    /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn delete(&mut self, key: &[u8]) -> Result<()> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_delete_elem(self.fd as i32, key.as_ptr() as *const c_void)
-        };
-
-        if ret == 0 {
-            Ok(())
-        } else {
-            Err(Error::System(errno::errno()))
-        }
-    }
-
-    /// Same as [`Map::lookup()`] except this also deletes the key from the map.
-    ///
-    /// Note that this operation is currently only implemented in the kernel for [`MapType::Queue`]
-    /// and [`MapType::Stack`].
-    ///
-    /// `key` must have exactly [`Map::key_size()`] elements.
-    pub fn lookup_and_delete(&mut self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_lookup_and_delete_elem(
-                self.fd as i32,
-                key.as_ptr() as *const c_void,
-                out.as_mut_ptr() as *mut c_void,
-            )
-        };
-
-        if ret == 0 {
-            unsafe {
-                out.set_len(self.value_size() as usize);
-            }
-            Ok(Some(out))
-        } else {
-            let errno = errno::errno();
-            if errno::Errno::from_i32(errno) == errno::Errno::ENOENT {
-                Ok(None)
-            } else {
-                Err(Error::System(errno))
-            }
-        }
-    }
-
-    /// Update an element.
-    ///
-    /// `key` must have exactly [`Map::key_size()`] elements. `value` must have exatly
-    /// [`Map::value_size()`] elements.
-    pub fn update(&mut self, key: &[u8], value: &[u8], flags: MapFlags) -> Result<()> {
-        if key.len() != self.key_size() as usize {
-            return Err(Error::InvalidInput(format!(
-                "key_size {} != {}",
-                key.len(),
-                self.key_size()
-            )));
-        };
-
-        if value.len() != self.value_size() as usize {
-            return Err(Error::InvalidInput(format!(
-                "value_size {} != {}",
-                value.len(),
-                self.value_size()
-            )));
-        };
-
-        let ret = unsafe {
-            libbpf_sys::bpf_map_update_elem(
-                self.fd as i32,
-                key.as_ptr() as *const c_void,
-                value.as_ptr() as *const c_void,
-                flags.bits,
-            )
-        };
-
-        if ret == 0 {
-            Ok(())
-        } else {
-            Err(Error::System(errno::errno()))
         }
     }
 
