@@ -390,6 +390,12 @@ impl MapOps for PinnedMap {
     }
 }
 
+impl Drop for PinnedMap {
+    fn drop(&mut self) {
+        nix::unistd::close(self.fd).unwrap();
+    }
+}
+
 #[rustfmt::skip]
 bitflags! {
     /// Flags to configure [`Map`] operations.
