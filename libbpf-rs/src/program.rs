@@ -36,6 +36,18 @@ impl OpenProgram {
             libbpf_sys::bpf_program__set_ifindex(self.ptr, idx);
         }
     }
+
+    pub fn set_autoload(&mut self, autoload: bool) -> Result<()> {
+        let ret = unsafe { libbpf_sys::bpf_program__set_autoload(self.ptr, autoload) };
+        if ret < 0 {
+            return Err(Error::System(-ret));
+        }
+        Ok(())
+    }
+
+    pub fn autoload(&mut self) -> bool {
+        unsafe { libbpf_sys::bpf_program__autoload(self.ptr) }
+    }
 }
 
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.

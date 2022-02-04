@@ -365,6 +365,13 @@ impl Object {
                 break;
             }
 
+            // Skip programs that were not loaded
+            let load = unsafe { libbpf_sys::bpf_program__autoload(next_ptr) };
+            if !load {
+                prog = next_ptr;
+                continue;
+            }
+
             // Get the program name
             // bpf_program__name never returns NULL, so no need to check the pointer.
             let name = unsafe { libbpf_sys::bpf_program__name(next_ptr) };
