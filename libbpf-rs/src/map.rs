@@ -248,6 +248,13 @@ pub trait MapOps {
             Err(Error::System(errno::errno()))
         }
     }
+
+    /// Returns an iterator over keys in this map
+    ///
+    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
+    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
+    /// iteration becomes unpredictable.
+    fn keys(&self) -> MapKeyIter;
 }
 
 /// Represents a created map.
@@ -311,15 +318,6 @@ impl Map {
             Ok(())
         }
     }
-
-    /// Returns an iterator over keys in this map
-    ///
-    /// Note that if the map is not stable (stable meaning no updates or deletes) during iteration,
-    /// iteration can skip keys, restart from the beginning, or duplicate keys. In other words,
-    /// iteration becomes unpredictable.
-    pub fn keys(&self) -> MapKeyIter {
-        MapKeyIter::new(self, self.key_size())
-    }
 }
 
 impl MapOps for Map {
@@ -344,6 +342,10 @@ impl MapOps for Map {
 
     fn value_size(&self) -> u32 {
         self.value_size
+    }
+
+    fn keys(&self) -> MapKeyIter {
+        MapKeyIter::new(self, self.key_size())
     }
 }
 
@@ -404,6 +406,10 @@ impl MapOps for PinnedMap {
     fn value_size(&self) -> u32 {
         self.value_size
     }
+
+    fn keys(&self) -> MapKeyIter {
+        MapKeyIter::new(self, self.key_size())
+    }
 }
 
 impl Drop for PinnedMap {
@@ -463,13 +469,13 @@ pub enum MapType {
 }
 
 pub struct MapKeyIter<'a> {
-    map: &'a Map,
+    map: &'a dyn MapOps,
     prev: Option<Vec<u8>>,
     next: Vec<u8>,
 }
 
 impl<'a> MapKeyIter<'a> {
-    fn new(map: &'a Map, key_size: u32) -> Self {
+    fn new(map: &'a dyn MapOps, key_size: u32) -> Self {
         Self {
             map,
             prev: None,
