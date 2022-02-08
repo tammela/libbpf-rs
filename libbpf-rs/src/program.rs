@@ -1,5 +1,8 @@
 use std::convert::TryFrom;
 use std::path::Path;
+use std::time::Duration;
+use std::ffi::c_void;
+use std::ptr;
 
 use nix::errno;
 use num_enum::TryFromPrimitive;
@@ -355,5 +358,26 @@ impl Program {
         } else {
             Ok(Link::new(ptr))
         }
+    }
+
+    pub fn prog_run(&self, repeat: i32, data_in: &[u8], data_out: Option<&mut [u8]>) -> Result<(u32, Duration)> {
+        let mut retval = 0u32;
+        let mut duration = 0u32;
+        let data_in_c = data_in.as_ptr() as *mut c_void;
+        let (data_out_c, data_out_len_c) = match data_out {
+            Some(d) => {
+                let mut len = d.len() as u32;
+                (d.as_mut_ptr() as *mut c_void, &mut len as *mut u32)
+            },
+            None => (ptr::null_mut(), ptr::null_mut())
+        };
+
+        let ret = unsafe { libbpf_sys::bpf_prog_test_run(self.fd(), repeat, data_in_c,
+        data_in.len() as u32, data_out_c, data_out_len_c, &mut retval as *mut u32, &mut duration as *mut u32) };
+        if ret != 0 {
+            return Err(Error::System(-ret));
+        }
+
+        Ok((retval, Duration::from_nanos(duration as u64)))
     }
 }
