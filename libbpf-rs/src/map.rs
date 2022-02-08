@@ -57,6 +57,17 @@ impl OpenMap {
         Ok(())
     }
 
+    pub fn set_pin_path<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+
+        let ret = unsafe { libbpf_sys::bpf_map__set_pin_path(self.ptr, path_c.as_ptr()) };
+        if ret != 0 {
+            return Err(Error::System(-ret));
+        }
+
+        Ok(())
+    }
+
     pub fn set_inner_map_fd(&mut self, inner: &Map) {
         unsafe { libbpf_sys::bpf_map__set_inner_map_fd(self.ptr, inner.fd()) };
     }
