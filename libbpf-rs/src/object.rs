@@ -1,6 +1,6 @@
 use core::ffi::c_void;
 use std::collections::HashMap;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::mem;
 use std::os::raw::c_char;
 use std::path::Path;
@@ -13,6 +13,7 @@ use crate::*;
 pub struct ObjectBuilder {
     name: String,
     relaxed_maps: bool,
+    pin_root_path: Option<CString>,
 }
 
 impl ObjectBuilder {
@@ -26,6 +27,11 @@ impl ObjectBuilder {
     pub fn relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
         self.relaxed_maps = relaxed_maps;
         self
+    }
+
+    pub fn pin_root_path<P: AsRef<Path>>(&mut self, path: P) -> Result<&mut Self> {
+        self.pin_root_path = Some(util::path_to_cstring(path)?);
+        Ok(self)
     }
 
     /// Option to print debug output to stderr.
@@ -59,12 +65,13 @@ impl ObjectBuilder {
     /// Used for skeleton -- an end user may not consider this API stable
     #[doc(hidden)]
     pub fn opts(&mut self, name: *const c_char) -> libbpf_sys::bpf_object_open_opts {
+        let pin_root_path_ptr = self.pin_root_path.as_ref().map_or(ptr::null(), |p| { p.as_ptr() });
         libbpf_sys::bpf_object_open_opts {
             sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
             object_name: name,
             relaxed_maps: self.relaxed_maps,
             relaxed_core_relocs: false,
-            pin_root_path: ptr::null(),
+            pin_root_path: pin_root_path_ptr,
             attach_prog_fd: 0,
             kconfig: ptr::null(),
         }
@@ -133,6 +140,7 @@ impl Default for ObjectBuilder {
         ObjectBuilder {
             name: String::new(),
             relaxed_maps: false,
+            pin_root_path: None,
         }
     }
 }
