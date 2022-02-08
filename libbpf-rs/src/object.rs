@@ -170,7 +170,7 @@ impl OpenObject {
             let name = util::c_ptr_to_string(name)?;
 
             // Add the map to the hashmap
-            obj.maps.insert(name, OpenMap::new(next_ptr));
+            obj.maps.insert(name.clone(), OpenMap::new(name, next_ptr));
             map = next_ptr;
         }
 

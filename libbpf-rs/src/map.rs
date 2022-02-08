@@ -17,12 +17,17 @@ use crate::*;
 /// Some methods require working with raw bytes. You may find libraries such as
 /// [`plain`](https://crates.io/crates/plain) helpful.
 pub struct OpenMap {
+    name: String,
     ptr: *mut libbpf_sys::bpf_map,
 }
 
 impl OpenMap {
-    pub(crate) fn new(ptr: *mut libbpf_sys::bpf_map) -> Self {
-        OpenMap { ptr }
+    pub(crate) fn new(name: String, ptr: *mut libbpf_sys::bpf_map) -> Self {
+        OpenMap { ptr, name }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn set_map_ifindex(&mut self, idx: u32) {
